@@ -8,69 +8,100 @@ self.onmessage = (event) => {
   }
 };
 
+function isqrt(n) {
+  if (n < 0n) throw new Error("sqrt of negative");
+  if (n < 2n) return n;
+  let x = n;
+  let y = (x + 1n) >> 1n;
+  while (y < x) {
+    x = y;
+    y = (x + n / x) >> 1n;
+  }
+  return x;
+}
+
 function computePi(n, chunkSize) {
-  // Use BigInt for precision.
-  // This implementation emits digits in base 10^4 to reduce loop count.
+  // Chudnovsky algorithm (binary splitting) for high-performance pi computation.
+  // Uses BigInt and streams progress updates (based on terms computed) while working.
   const target = BigInt(n);
-  const BASE = 10000n;
-  const BASE_DIGITS = 4;
+  const DIGITS_PER_TERM = 14.181647462725477; // approx digits added per term
+  const maxTerms = Math.ceil(n / DIGITS_PER_TERM) + 1;
 
-  let q = 1n;
-  let r = 0n;
-  let t = 1n;
-  let k = 1n;
-  let nDigit = 3n;
-  let l = 3n;
+  let termsComputed = 0;
+  let lastProgressSent = 0;
 
-  let produced = 0n;
-  const buffer = [];
+  const C0 = 640320n;
+  const C3 = C0 * C0 * C0;
+
+  function postProgress() {
+    const estimated = Math.min(n, Math.floor(termsComputed * DIGITS_PER_TERM));
+    const delta = estimated - lastProgressSent;
+    const minDelta = Math.max(1, Math.floor(n * 0.01));
+    if (delta >= minDelta || estimated === n) {
+      lastProgressSent = estimated;
+      postMessage({ type: "progress", produced: estimated, total: n });
+    }
+  }
+
+  function bs(a, b) {
+    if (b - a === 1) {
+      // Base case: single term.
+      const k = BigInt(a);
+
+      if (a === 0) {
+        termsComputed += 1;
+        postProgress();
+        return {
+          P: 1n,
+          Q: 1n,
+          T: 13591409n,
+        };
+      }
+
+      const P = (6n * k - 5n) * (2n * k - 1n) * (6n * k - 1n);
+      const Q = k * k * k * C3;
+      const T = (13591409n + 545140134n * k) * (a % 2 === 0 ? 1n : -1n) * P;
+
+      termsComputed += 1;
+      postProgress();
+      return { P, Q, T };
+    }
+
+    const m = Math.floor((a + b) / 2);
+    const left = bs(a, m);
+    const right = bs(m, b);
+
+    return {
+      P: left.P * right.P,
+      Q: left.Q * right.Q,
+      T: right.Q * left.T + left.P * right.T,
+    };
+  }
 
   // Send an initial message to indicate computation started.
   postMessage({ type: "started", digits: n });
 
-  while (produced < target) {
-    if (4n * q + r - t < nDigit * t) {
-      // Digit output in blocks (base 10^4) for faster calculation.
-      const digitStr = produced === 0n
-        ? nDigit.toString()
-        : nDigit.toString().padStart(BASE_DIGITS, "0");
+  const { P, Q, T } = bs(0, maxTerms);
 
-      // Cut the last block if it would exceed requested digits.
-      const remaining = target - produced;
-      const append = remaining < BigInt(digitStr.length)
-        ? digitStr.slice(0, Number(remaining))
-        : digitStr;
+  // Constant: 426880 * sqrt(10005)
+  const precision = BigInt(n + 10);
+  const one = 10n ** (precision * 2n);
+  const sqrtC = isqrt(10005n * one);
+  const C = 426880n * sqrtC;
 
-      buffer.push(append);
-      produced += BigInt(append.length);
+  const piScaled = (C * Q) / T;
+  const piStr = piScaled.toString().padStart(n + 1, "0");
 
-      const qNew = q * BASE;
-      const rNew = BASE * (r - nDigit * t);
-      const nNew = (BASE * (3n * q + r)) / t - BASE * nDigit;
-
-      q = qNew;
-      r = rNew;
-      nDigit = nNew;
-    } else {
-      const qNew = q * k;
-      const rNew = (2n * q + r) * l;
-      const tNew = t * l;
-      const nNew = (q * (7n * k + 2n) + r * l) / (t * l);
-
-      q = qNew;
-      r = rNew;
-      t = tNew;
-      k += 1n;
-      nDigit = nNew;
-      l += 2n;
-    }
-
-    if (buffer.length >= chunkSize || produced >= target) {
-      const sent = Number(produced > target ? target : produced);
-      postMessage({ type: "chunk", digits: buffer.join(""), produced: sent });
-      buffer.length = 0;
-    }
+  // Stream the result back in chunks.
+  let sent = 0;
+  while (sent < piStr.length) {
+    const chunk = piStr.slice(sent, sent + chunkSize);
+    sent += chunk.length;
+    postMessage({ type: "chunk", digits: chunk, produced: Math.min(Number(target), sent) });
   }
+
+  postMessage({ type: "done" });
+}
 
   postMessage({ type: "done" });
 }

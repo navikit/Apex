@@ -342,6 +342,30 @@
             return;
           }
 
+          if (type === "progress") {
+            const producedNum = Number(produced);
+            const totalNum = Number(total);
+
+            // Smooth ETA using the same rate tracker as digit output.
+            const now = performance.now();
+            const deltaProduced = producedNum - lastProduced;
+            const deltaTime = (now - lastUpdate) / 1000;
+            const instantRate = deltaProduced / Math.max(deltaTime, 0.001);
+            avgRate = avgRate === null ? instantRate : avgRate * 0.80 + instantRate * 0.20;
+            lastProduced = producedNum;
+            lastUpdate = now;
+
+            const elapsed = (now - startTime) / 1000;
+            const remaining = Math.max(0, totalNum - producedNum);
+            const eta = avgRate > 0 ? remaining / avgRate : 0;
+
+            progressBar.max = totalNum;
+            progressBar.value = producedNum;
+            progressEl.textContent = `Computed ${producedNum} / ${totalNum} digits (${(producedNum / totalNum * 100).toFixed(1)}%)`;
+            timerEl.textContent = `Elapsed: ${elapsed.toFixed(1)}s | ETA: ${eta.toFixed(1)}s`;
+            return;
+          }
+
           if (type === "chunk") {
             const producedNum = Number(produced);
             const totalNum = total !== undefined ? Number(total) : progressBar.max;
