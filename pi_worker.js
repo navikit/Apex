@@ -51,7 +51,7 @@ function computePi(n, chunkSize) {
     }
 
     if (buffer.length >= chunkSize || produced >= n) {
-      postMessage({ type: "chunk", digits: buffer });
+      postMessage({ type: "chunk", digits: buffer, produced });
       buffer = "";
     }
   }

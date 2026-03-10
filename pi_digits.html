@@ -61,13 +61,17 @@
   <button id="stop" disabled>Stop</button>
 
   <div id="warning"></div>
+  <progress id="progressBar" value="0" max="0" style="width: 100%; height: 16px;"></progress>
   <div id="progress"></div>
+  <div id="timer"></div>
   <div id="output"></div>
 
   <script>
     const outputEl = document.getElementById("output");
     const warningEl = document.getElementById("warning");
     const progressEl = document.getElementById("progress");
+    const timerEl = document.getElementById("timer");
+    const progressBar = document.getElementById("progressBar");
     const computeBtn = document.getElementById("compute");
     const stopBtn = document.getElementById("stop");
 
@@ -158,18 +162,25 @@
 
       let outputBuffer = "";
       let lastUpdate = 0;
+      let startTime = 0;
+      let lastProduced = 0;
 
       worker.onmessage = (event) => {
         const { type, digits } = event.data;
 
         if (type === "started") {
           warningEl.textContent = "";
-          outputEl.textContent = "";
+          outputEl.textContent = "| ";
+          progressBar.max = digits;
+          progressBar.value = 0;
           progressEl.textContent = `Starting computation for ${digits} digits...`;
+          timerEl.textContent = `Elapsed: 0.0s | ETA: calculating...`;
           computeBtn.disabled = true;
           stopBtn.disabled = false;
           hasWrittenFirst = false;
           outputBuffer = "";
+          startTime = performance.now();
+          lastProduced = 0;
           lastUpdate = performance.now();
           return;
         }
@@ -182,6 +193,7 @@
             outputBuffer += digits;
           }
 
+          // Write output intermittently to keep UI responsive.
           const now = performance.now();
           if (now - lastUpdate > 50 || outputBuffer.length > 5000) {
             outputEl.textContent += outputBuffer;
@@ -189,8 +201,17 @@
             lastUpdate = now;
           }
 
-          const digitCount = hasWrittenFirst ? outputEl.textContent.length - 2 : 0;
-          progressEl.textContent = `Computed ${digitCount} digits...`;
+          // Update progress and ETA.
+          const produced = event.data.produced;
+          const elapsed = (now - startTime) / 1000;
+          const rate = produced / Math.max(elapsed, 0.001);
+          const remaining = Math.max(0, event.data.digits ? progressBar.max - produced : 0);
+          const eta = rate > 0 ? (remaining / rate) : 0;
+
+          progressBar.value = produced;
+          progressEl.textContent = `Computed ${produced} / ${progressBar.max} digits (${(produced / progressBar.max * 100).toFixed(1)}%)`;
+          timerEl.textContent = `Elapsed: ${elapsed.toFixed(1)}s | ETA: ${eta.toFixed(1)}s`;
+
           return;
         }
 
@@ -200,6 +221,8 @@
             outputEl.textContent += outputBuffer;
             outputBuffer = "";
           }
+          const elapsed = (performance.now() - startTime) / 1000;
+          timerEl.textContent = `Elapsed: ${elapsed.toFixed(1)}s | ETA: 0.0s`;
           progressEl.textContent = "Done!";
           computeBtn.disabled = false;
           stopBtn.disabled = true;
@@ -212,7 +235,7 @@
 
       // Increase chunk size for faster generation. This controls how often the worker
       // sends updates back to the main thread.
-      worker.postMessage({ type: "start", digits: n, chunk: 50000 });
+      worker.postMessage({ type: "start", digits: n, chunk: 200000 });
     }
 
     computeBtn.addEventListener("click", () => {
