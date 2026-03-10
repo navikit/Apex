@@ -195,6 +195,11 @@
         }
 
         if (type === "done") {
+          // Flush any buffered digits that haven't been written yet.
+          if (outputBuffer.length) {
+            outputEl.textContent += outputBuffer;
+            outputBuffer = "";
+          }
           progressEl.textContent = "Done!";
           computeBtn.disabled = false;
           stopBtn.disabled = true;
