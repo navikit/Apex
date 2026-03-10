@@ -58,94 +58,95 @@
   <label for="digits">Digits of π:</label>
   <input id="digits" type="number" value="200" min="1" max="10000" />
   <button id="compute">Compute π digits</button>
+  <button id="stop" disabled>Stop</button>
 
   <div id="warning"></div>
   <div id="progress"></div>
   <div id="output"></div>
 
   <script>
-    const MAX_DIGITS = 10000;
-    const CHUNK_SIZE = 20; // digits per animation frame slice
-
-    // Pi digit generator (BBP-like spigot) computed in chunks so UI stays responsive.
-    function computePiDigitsAsync(n, onProgress, onDone) {
-      const digits = [];
-
-      // Use BigInt for accuracy on larger digit counts.
-      let q = 1n;
-      let r = 0n;
-      let t = 1n;
-      let k = 1n;
-      let nDigit = 3n;
-      let l = 3n;
-
-      function step() {
-        const end = Math.min(n, digits.length + CHUNK_SIZE);
-
-        while (digits.length < end) {
-          if (4n * q + r - t < nDigit * t) {
-            digits.push(Number(nDigit));
-
-            const qNew = q * 10n;
-            const rNew = 10n * (r - nDigit * t);
-            const nNew = (10n * (3n * q + r)) / t - 10n * nDigit;
-
-            q = qNew;
-            r = rNew;
-            nDigit = nNew;
-          } else {
-            const qNew = q * k;
-            const rNew = (2n * q + r) * l;
-            const tNew = t * l;
-            const nNew = (q * (7n * k + 2n) + r * l) / (t * l);
-
-            q = qNew;
-            r = rNew;
-            t = tNew;
-            k += 1n;
-            nDigit = nNew;
-            l += 2n;
-          }
-        }
-
-        onProgress(digits.length, n);
-        if (digits.length < n) {
-          requestAnimationFrame(step);
-        } else {
-          onDone(digits);
-        }
-      }
-
-      step();
-    }
-
     const outputEl = document.getElementById("output");
     const warningEl = document.getElementById("warning");
     const progressEl = document.getElementById("progress");
+    const computeBtn = document.getElementById("compute");
+    const stopBtn = document.getElementById("stop");
 
-    document.getElementById("compute").addEventListener("click", () => {
+    let worker;
+
+    function startWorker(n) {
+      if (typeof Worker === "undefined") {
+        warningEl.textContent = "Web Workers are not supported in this browser.";
+        return;
+      }
+
+      worker = new Worker("./pi_worker.js");
+
+      let hasWrittenFirst = false;
+
+      worker.onmessage = (event) => {
+        const { type, digits, digits: count } = event.data;
+
+        if (type === "started") {
+          warningEl.textContent = "";
+          outputEl.textContent = "";
+          progressEl.textContent = `Starting computation for ${digits} digits...`;
+          computeBtn.disabled = true;
+          stopBtn.disabled = false;
+          hasWrittenFirst = false;
+          return;
+        }
+
+        if (type === "chunk") {
+          if (!hasWrittenFirst && digits.length > 0) {
+            outputEl.textContent = `${digits[0]}.`;
+            if (digits.length > 1) {
+              outputEl.textContent += digits.slice(1).join("");
+            }
+            hasWrittenFirst = true;
+          } else {
+            outputEl.textContent += digits.join("");
+          }
+
+          const digitCount = hasWrittenFirst ? outputEl.textContent.length - 2 : 0;
+          progressEl.textContent = `Computed ${digitCount} digits...`;
+          return;
+        }
+
+        if (type === "done") {
+          progressEl.textContent = "Done!";
+          computeBtn.disabled = false;
+          stopBtn.disabled = true;
+          worker.terminate();
+          worker = null;
+          return;
+        }
+      };
+
+      worker.postMessage({ type: "start", digits: n, chunk: 1000 });
+    }
+
+    computeBtn.addEventListener("click", () => {
       const n = Number(document.getElementById("digits").value);
       if (!Number.isInteger(n) || n < 1) {
         warningEl.textContent = "Please enter a positive integer.";
         return;
       }
 
-      if (n > MAX_DIGITS) {
-        warningEl.textContent = `For performance reasons, max is ${MAX_DIGITS} digits.`;
-        return;
-      }
-
       warningEl.textContent = "";
-      outputEl.textContent = "Computing...";
+      outputEl.textContent = "";
       progressEl.textContent = "";
 
-      computePiDigitsAsync(n + 1, (done, total) => {
-        progressEl.textContent = `Computed ${done} / ${total} digits...`;
-      }, (digits) => {
-        const pi = digits[0] + "." + digits.slice(1).join("");
-        progressEl.textContent = "Done!";
-        outputEl.textContent = pi;
-      });
+      startWorker(n);
+    });
+
+    stopBtn.addEventListener("click", () => {
+      if (worker) {
+        worker.terminate();
+        worker = null;
+        progressEl.textContent = "Stopped.";
+        computeBtn.disabled = false;
+        stopBtn.disabled = true;
+      }
     });
   </script>
 </body>
