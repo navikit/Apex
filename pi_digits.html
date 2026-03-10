@@ -287,7 +287,7 @@
             }
 
             if (buffer.length >= chunkSize || produced >= n) {
-              postMessage({ type: "chunk", digits: buffer, produced });
+              postMessage({ type: "chunk", digits: buffer, produced: Number(produced), total: Number(n) });
               buffer = "";
             }
           }
@@ -320,51 +320,56 @@
       let lastProduced = 0;
 
       worker.onmessage = (event) => {
-        const { type, digits } = event.data;
+          const { type, digits, produced, total } = event.data;
 
-        if (type === "started") {
-          warningEl.textContent = "";
-          outputEl.textContent = "";
-          progressBar.max = digits;
-          progressBar.value = 0;
-          progressEl.textContent = `Starting computation for ${digits} digits...`;
-          timerEl.textContent = `Elapsed: 0.0s | ETA: calculating...`;
-          computeBtn.disabled = true;
-          stopBtn.disabled = false;
-          hasWrittenFirst = false;
-          outputBuffer = "";
-          startTime = performance.now();
-          lastProduced = 0;
-          lastUpdate = performance.now();
-          return;
-        }
+          if (type === "started") {
+            warningEl.textContent = "";
+            outputEl.textContent = "";
 
-        if (type === "chunk") {
-          if (!hasWrittenFirst && digits.length > 0) {
-            outputBuffer = `${digits[0]}.` + digits.slice(1);
-            hasWrittenFirst = true;
-          } else {
-            outputBuffer += digits;
-          }
-
-          // Write output intermittently to keep UI responsive.
-          const now = performance.now();
-          if (now - lastUpdate > 50 || outputBuffer.length > 5000) {
-            outputEl.textContent += outputBuffer;
+            // Ensure progress bar max is a number.
+            progressBar.max = Number(digits);
+            progressBar.value = 0;
+            progressEl.textContent = `Starting computation for ${digits} digits...`;
+            timerEl.textContent = `Elapsed: 0.0s | ETA: calculating...`;
+            computeBtn.disabled = true;
+            stopBtn.disabled = false;
+            hasWrittenFirst = false;
             outputBuffer = "";
-            lastUpdate = now;
+            startTime = performance.now();
+            lastProduced = 0;
+            lastUpdate = performance.now();
+            return;
           }
 
-          // Update progress and ETA.
-          const produced = event.data.produced;
-          const elapsed = (now - startTime) / 1000;
-          const rate = produced / Math.max(elapsed, 0.001);
-          const remaining = Math.max(0, event.data.digits ? progressBar.max - produced : 0);
-          const eta = rate > 0 ? (remaining / rate) : 0;
+          if (type === "chunk") {
+            const producedNum = Number(produced);
+            const totalNum = total !== undefined ? Number(total) : progressBar.max;
 
-          progressBar.value = produced;
-          progressEl.textContent = `Computed ${produced} / ${progressBar.max} digits (${(produced / progressBar.max * 100).toFixed(1)}%)`;
-          timerEl.textContent = `Elapsed: ${elapsed.toFixed(1)}s | ETA: ${eta.toFixed(1)}s`;
+            if (!hasWrittenFirst && digits.length > 0) {
+              outputBuffer = `${digits[0]}.` + digits.slice(1);
+              hasWrittenFirst = true;
+            } else {
+              outputBuffer += digits;
+            }
+
+            // Write output intermittently to keep UI responsive.
+            const now = performance.now();
+            if (now - lastUpdate > 50 || outputBuffer.length > 5000) {
+              outputEl.textContent += outputBuffer;
+              outputBuffer = "";
+              lastUpdate = now;
+            }
+
+            // Update progress and ETA.
+            // Ensure we use numbers for calculations (BigInt would throw).
+            const elapsed = (now - startTime) / 1000;
+            const rate = producedNum / Math.max(elapsed, 0.001);
+            const remaining = Math.max(0, totalNum - producedNum);
+            const eta = rate > 0 ? (remaining / rate) : 0;
+
+            progressBar.max = totalNum;
+            progressBar.value = producedNum;
+            progressEl.textContent = `Computed ${producedNum} / ${totalNum} digits (${(producedNum / totalNum * 100).toFixed(1)}%)`;
 
           return;
         }
