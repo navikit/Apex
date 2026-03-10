@@ -156,6 +156,9 @@
 
       let hasWrittenFirst = false;
 
+      let outputBuffer = "";
+      let lastUpdate = 0;
+
       worker.onmessage = (event) => {
         const { type, digits } = event.data;
 
@@ -166,18 +169,24 @@
           computeBtn.disabled = true;
           stopBtn.disabled = false;
           hasWrittenFirst = false;
+          outputBuffer = "";
+          lastUpdate = performance.now();
           return;
         }
 
         if (type === "chunk") {
           if (!hasWrittenFirst && digits.length > 0) {
-            outputEl.textContent = `${digits[0]}.`;
-            if (digits.length > 1) {
-              outputEl.textContent += digits.slice(1).join("");
-            }
+            outputBuffer = `${digits[0]}.` + digits.slice(1);
             hasWrittenFirst = true;
           } else {
-            outputEl.textContent += digits.join("");
+            outputBuffer += digits;
+          }
+
+          const now = performance.now();
+          if (now - lastUpdate > 50 || outputBuffer.length > 5000) {
+            outputEl.textContent += outputBuffer;
+            outputBuffer = "";
+            lastUpdate = now;
           }
 
           const digitCount = hasWrittenFirst ? outputEl.textContent.length - 2 : 0;
@@ -196,7 +205,9 @@
         }
       };
 
-      worker.postMessage({ type: "start", digits: n, chunk: 1000 });
+      // Increase chunk size for faster generation. This controls how often the worker
+      // sends updates back to the main thread.
+      worker.postMessage({ type: "start", digits: n, chunk: 50000 });
     }
 
     computeBtn.addEventListener("click", () => {

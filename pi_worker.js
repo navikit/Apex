@@ -18,14 +18,14 @@ function computePi(n, chunkSize) {
   let l = 3n;
 
   let produced = 0;
-  let buffer = [];
+  let buffer = "";
 
   // Send an initial message to indicate computation started.
   postMessage({ type: "started", digits: n });
 
   while (produced < n) {
     if (4n * q + r - t < nDigit * t) {
-      buffer.push(Number(nDigit));
+      buffer += nDigit.toString();
 
       const qNew = q * 10n;
       const rNew = 10n * (r - nDigit * t);
@@ -52,7 +52,7 @@ function computePi(n, chunkSize) {
 
     if (buffer.length >= chunkSize || produced >= n) {
       postMessage({ type: "chunk", digits: buffer });
-      buffer = [];
+      buffer = "";
     }
   }
 
