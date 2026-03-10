@@ -5,7 +5,7 @@ A small standalone web page that computes digits of π in the browser using a We
 ## How to run
 
 ### Option A (fastest, no server required)
-1. Open `pi_digits/pi_digits.html` in your web browser.
+1. Open [pi_digits.html](pi_digits.html) in your web browser.
 2. Enter the number of digits you want to compute.
 3. Click **Compute π digits** and watch the progress bar + ETA update in real time.
 
@@ -16,6 +16,9 @@ A small standalone web page that computes digits of π in the browser using a We
    `python -m http.server 8000`
 2. Open your browser and go to:  
    `http://localhost:8000/pi_digits/pi_digits.html`
+
+### Quick open (if you already have a server running)
+- [Open Pi Digits Viewer](http://localhost:8000/pi_digits/pi_digits.html)
 
 ## Notes
 - This is *not* a cryptographically secure generator — it’s an educational/demonstration tool.
