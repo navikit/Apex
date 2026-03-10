@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Life Optimizer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>AI Life Optimizer</h1>
+      <p>Track your habits, log metrics, and get AI-powered recommendations.</p>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>Create / Select User</h2>
+        <form id="userForm">
+          <label>
+            Email
+            <input id="userEmail" type="email" placeholder="you@example.com" required />
+          </label>
+          <label>
+            Name
+            <input id="userName" type="text" placeholder="Your name" />
+          </label>
+          <button type="submit">Create / Load</button>
+        </form>
+        <div id="userInfo" class="details"></div>
+      </section>
+
+      <section class="card">
+        <h2>Log a Metric</h2>
+        <form id="metricForm" class="disabled">
+          <label>
+            Metric key
+            <input id="metricKey" type="text" placeholder="productivity" required />
+          </label>
+          <label>
+            Value
+            <input id="metricValue" type="number" step="0.01" placeholder="42" required />
+          </label>
+          <button type="submit">Submit</button>
+        </form>
+        <div id="metricStatus" class="details"></div>
+      </section>
+
+      <section class="card">
+        <h2>Recommendations</h2>
+        <div id="recommendations" class="details">Create a user and log a metric to see recommendations.</div>
+        <button id="refreshRecommendations" class="disabled">Refresh</button>
+      </section>
+    </main>
+
+    <footer>
+      <p>Powered by FastAPI + AI Life Optimizer backend.</p>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

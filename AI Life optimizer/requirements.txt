@@ -4,6 +4,7 @@ python-dotenv
 sqlalchemy
 databases
 pydantic
+pydantic-settings
 pandas
 numpy
 scikit-learn

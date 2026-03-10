@@ -1,7 +1,11 @@
 import os
 from functools import lru_cache
 
-from pydantic import BaseSettings
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:  # pragma: no cover
+    # Backwards compatibility for older Pydantic versions
+    from pydantic import BaseSettings
 
 
 class Settings(BaseSettings):
