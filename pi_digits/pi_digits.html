@@ -370,9 +370,11 @@
             progressBar.max = totalNum;
             progressBar.value = producedNum;
             progressEl.textContent = `Computed ${producedNum} / ${totalNum} digits (${(producedNum / totalNum * 100).toFixed(1)}%)`;
+            timerEl.textContent = `Elapsed: ${elapsed.toFixed(1)}s | ETA: ${eta.toFixed(1)}s`;
 
-          return;
-        }
+            return;
+          }
+
 
         if (type === "done") {
           // Flush any buffered digits that haven't been written yet.
@@ -392,9 +394,10 @@
         }
       };
 
-      // Increase chunk size for faster generation. This controls how often the worker
-      // sends updates back to the main thread.
-      worker.postMessage({ type: "start", digits: n, chunk: 200000 });
+      // Tune chunk size so progress updates feel smooth while still staying fast.
+      // Smaller chunks increase UI responsiveness; larger chunks reduce messaging overhead.
+      const chunkSize = Math.max(2000, Math.min(200000, Math.floor(n / 200)));
+      worker.postMessage({ type: "start", digits: n, chunk: chunkSize });
     }
 
     computeBtn.addEventListener("click", () => {
