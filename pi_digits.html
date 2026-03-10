@@ -52,11 +52,11 @@
   <h1>Pi digits (approx)</h1>
   <p>
     Pi is an <strong>infinite, non-repeating</strong> number, so we can only show a finite amount of digits.
-    For speed, this page limits the output to <strong>10,000 digits</strong> by default.
+    There is no enforced maximum; the computation will keep running until the requested number of digits is reached or you stop it.
   </p>
 
   <label for="digits">Digits of π:</label>
-  <input id="digits" type="number" value="200" min="1" max="10000" />
+  <input id="digits" type="number" value="200" min="1" />
   <button id="compute">Compute π digits</button>
   <button id="stop" disabled>Stop</button>
 
