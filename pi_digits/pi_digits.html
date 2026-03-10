@@ -318,6 +318,7 @@
       let lastUpdate = 0;
       let startTime = 0;
       let lastProduced = 0;
+      let avgRate = null;
 
       worker.onmessage = (event) => {
           const { type, digits, produced, total } = event.data;
@@ -354,44 +355,48 @@
 
             // Write output intermittently to keep UI responsive.
             const now = performance.now();
-            if (now - lastUpdate > 50 || outputBuffer.length > 5000) {
+            const shouldFlush = now - lastUpdate > 50 || outputBuffer.length > 5000;
+            if (shouldFlush) {
               outputEl.appendChild(document.createTextNode(outputBuffer));
               outputBuffer = "";
+
+              // Update ETA using a smoothed rate based on recent progress.
+              const deltaProduced = producedNum - lastProduced;
+              const deltaTime = (now - lastUpdate) / 1000;
+              const instantRate = deltaProduced / Math.max(deltaTime, 0.001);
+              avgRate = avgRate === null ? instantRate : avgRate * 0.80 + instantRate * 0.20;
+              lastProduced = producedNum;
               lastUpdate = now;
             }
 
-            // Update progress and ETA.
-            // Ensure we use numbers for calculations (BigInt would throw).
+            // Update progress bar and status.
             const elapsed = (now - startTime) / 1000;
-            const rate = producedNum / Math.max(elapsed, 0.001);
             const remaining = Math.max(0, totalNum - producedNum);
-            const eta = rate > 0 ? (remaining / rate) : 0;
+            const eta = avgRate > 0 ? remaining / avgRate : 0;
 
             progressBar.max = totalNum;
             progressBar.value = producedNum;
             progressEl.textContent = `Computed ${producedNum} / ${totalNum} digits (${(producedNum / totalNum * 100).toFixed(1)}%)`;
             timerEl.textContent = `Elapsed: ${elapsed.toFixed(1)}s | ETA: ${eta.toFixed(1)}s`;
-
             return;
           }
 
-
-        if (type === "done") {
-          // Flush any buffered digits that haven't been written yet.
-          if (outputBuffer.length) {
-            outputEl.textContent += outputBuffer;
-            outputBuffer = "";
+          if (type === "done") {
+            // Flush any buffered digits that haven't been written yet.
+            if (outputBuffer.length) {
+              outputEl.textContent += outputBuffer;
+              outputBuffer = "";
+            }
+            const elapsed = (performance.now() - startTime) / 1000;
+            timerEl.textContent = `Elapsed: ${elapsed.toFixed(1)}s | ETA: 0.0s`;
+            progressEl.textContent = "Done!";
+            computeBtn.disabled = false;
+            stopBtn.disabled = true;
+            worker.terminate();
+            worker = null;
+            URL.revokeObjectURL(url);
+            return;
           }
-          const elapsed = (performance.now() - startTime) / 1000;
-          timerEl.textContent = `Elapsed: ${elapsed.toFixed(1)}s | ETA: 0.0s`;
-          progressEl.textContent = "Done!";
-          computeBtn.disabled = false;
-          stopBtn.disabled = true;
-          worker.terminate();
-          worker = null;
-          URL.revokeObjectURL(url);
-          return;
-        }
       };
 
       // Tune chunk size for speed: larger chunks reduce message overhead.

@@ -10,6 +10,11 @@ self.onmessage = (event) => {
 
 function computePi(n, chunkSize) {
   // Use BigInt for precision.
+  // This implementation emits digits in base 10^4 to reduce loop count.
+  const target = BigInt(n);
+  const BASE = 10000n;
+  const BASE_DIGITS = 4;
+
   let q = 1n;
   let r = 0n;
   let t = 1n;
@@ -17,25 +22,35 @@ function computePi(n, chunkSize) {
   let nDigit = 3n;
   let l = 3n;
 
-  let produced = 0;
+  let produced = 0n;
   const buffer = [];
 
   // Send an initial message to indicate computation started.
   postMessage({ type: "started", digits: n });
 
-  while (produced < n) {
+  while (produced < target) {
     if (4n * q + r - t < nDigit * t) {
-      buffer.push(nDigit.toString());
+      // Digit output in blocks (base 10^4) for faster calculation.
+      const digitStr = produced === 0n
+        ? nDigit.toString()
+        : nDigit.toString().padStart(BASE_DIGITS, "0");
 
-      const qNew = q * 10n;
-      const rNew = 10n * (r - nDigit * t);
-      const nNew = (10n * (3n * q + r)) / t - 10n * nDigit;
+      // Cut the last block if it would exceed requested digits.
+      const remaining = target - produced;
+      const append = remaining < BigInt(digitStr.length)
+        ? digitStr.slice(0, Number(remaining))
+        : digitStr;
+
+      buffer.push(append);
+      produced += BigInt(append.length);
+
+      const qNew = q * BASE;
+      const rNew = BASE * (r - nDigit * t);
+      const nNew = (BASE * (3n * q + r)) / t - BASE * nDigit;
 
       q = qNew;
       r = rNew;
       nDigit = nNew;
-
-      produced += 1;
     } else {
       const qNew = q * k;
       const rNew = (2n * q + r) * l;
@@ -50,8 +65,9 @@ function computePi(n, chunkSize) {
       l += 2n;
     }
 
-    if (buffer.length >= chunkSize || produced >= n) {
-      postMessage({ type: "chunk", digits: buffer.join(""), produced });
+    if (buffer.length >= chunkSize || produced >= target) {
+      const sent = Number(produced > target ? target : produced);
+      postMessage({ type: "chunk", digits: buffer.join(""), produced: sent });
       buffer.length = 0;
     }
   }
