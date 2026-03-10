@@ -89,17 +89,49 @@
       box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
     }
 
-    #controls {
+    .card__main {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 22px;
+      align-items: start;
+      margin-top: 18px;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .controls .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .controls .actions {
       display: flex;
       gap: 12px;
       flex-wrap: wrap;
-      align-items: baseline;
-      margin-bottom: 14px;
+      align-items: center;
+    }
+
+    .status {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-end;
+      font-size: 0.95rem;
+      color: var(--muted);
     }
 
     #progressBar {
       width: 100%;
-      height: 14px;
+      height: 12px;
       border-radius: 999px;
       border: 1px solid rgba(255, 255, 255, 0.18);
       background: rgba(255, 255, 255, 0.08);
@@ -108,21 +140,38 @@
 
     #timer,
     #progress {
-      margin-top: 12px;
       font-size: 0.92rem;
       color: var(--muted);
     }
 
-    #output {
-      margin-top: 18px;
+    .output {
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .output__header {
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.02em;
+    }
+
+    .output__content {
+      flex: 1;
       padding: 14px;
       border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       background: rgba(20, 32, 60, 0.82);
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       line-height: 1.35;
       max-height: 360px;
       overflow: auto;
+      word-break: break-all;
+      white-space: pre-wrap;
     }
 
     #warning {
@@ -132,29 +181,44 @@
   </style>
 </head>
 <body>
-  <h1>Pi digits (approx)</h1>
-  <p>
-    Pi is an <strong>infinite, non-repeating</strong> number, so we can only show a finite amount of digits.
-    There is no enforced maximum; the computation will keep running until the requested number of digits is reached or you stop it.
-  </p>
+  <div class="card">
+    <header class="card__header">
+      <div>
+        <h1>Pi digits (approx)</h1>
+        <p>
+          Pi is an <strong>infinite, non-repeating</strong> number, so we can only show a finite amount of digits.
+          There is no enforced maximum; the computation will keep running until the requested number of digits is reached or you stop it.
+        </p>
+      </div>
 
-  <div id="controls">
-    <div style="flex: 1; min-width: 220px;">
-      <label for="digits">Digits of π</label>
-      <input id="digits" type="number" value="200" min="1" />
-    </div>
+      <div class="status">
+        <div id="timer">Elapsed: 0.0s | ETA: --</div>
+        <div id="progress">Ready</div>
+      </div>
+    </header>
 
-    <div style="display: flex; gap: 12px; align-items: flex-end;">
-      <button id="compute">Compute π digits</button>
-      <button id="stop" disabled>Stop</button>
-    </div>
+    <main class="card__main">
+      <section class="controls">
+        <div class="field">
+          <label for="digits">Digits of π</label>
+          <input id="digits" type="number" value="200" min="1" />
+        </div>
+
+        <div class="actions">
+          <button id="compute">Compute π digits</button>
+          <button id="stop" disabled>Stop</button>
+        </div>
+
+        <div id="warning"></div>
+        <progress id="progressBar" value="0" max="0"></progress>
+      </section>
+
+      <section class="output">
+        <div class="output__header">Output</div>
+        <div id="output" class="output__content"></div>
+      </section>
+    </main>
   </div>
-
-  <div id="warning"></div>
-  <progress id="progressBar" value="0" max="0"></progress>
-  <div id="progress"></div>
-  <div id="timer"></div>
-  <div id="output"></div>
 
   <script>
     const outputEl = document.getElementById("output");
@@ -260,7 +324,7 @@
 
         if (type === "started") {
           warningEl.textContent = "";
-          outputEl.textContent = "| ";
+          outputEl.textContent = "";
           progressBar.max = digits;
           progressBar.value = 0;
           progressEl.textContent = `Starting computation for ${digits} digits...`;
